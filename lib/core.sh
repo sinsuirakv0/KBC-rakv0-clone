@@ -13,6 +13,7 @@ readonly KBC_DOWNLOAD_DIR="${KBC_CLONE_DOWNLOAD_DIR:-/sdcard/Download/KBC-clone-
 readonly KBC_REGISTRY_FILE="${KBC_STATE_DIR}/clones.tsv"
 readonly KBC_KEYSTORE_DIR="${KBC_DATA_DIR}/keystore"
 readonly KBC_ICON_DIR="${KBC_DATA_DIR}/icons"
+readonly KBC_ORIGINAL_ICON_PATH="${KBC_CLONE_ROOT}/assets/kbc-original-icon.png"
 readonly KBC_KEYSTORE_PATH="${KBC_KEYSTORE_DIR}/kbc-clone.jks"
 readonly KBC_PASSWORD_PATH="${KBC_KEYSTORE_DIR}/.signing-password"
 readonly KBC_KEY_ALIAS="kbc-clone"

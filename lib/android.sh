@@ -41,7 +41,11 @@ kbc_android_install_apk() {
   local apk_path="$1"
   [[ -f "${apk_path}" ]] || kbc_die "APKが見つかりません: ${apk_path}"
   kbc_info "Androidのインストーラーを開きます"
-  termux-open --view "${apk_path}"
+  termux-open \
+    --view \
+    --content-type application/vnd.android.package-archive \
+    "${apk_path}" ||
+    kbc_die 'Androidのインストーラーを開けませんでした。Termuxの「不明なアプリのインストール」を許可してください'
 }
 
 kbc_android_warn_package_query_limit() {

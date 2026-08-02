@@ -414,6 +414,7 @@ kbc_build_clone() {
     --v4-signing-enabled false \
     --out "${KBC_BUILD_OUTPUT}" \
     "${aligned_apk}"
+  zipalign -c -v 4 "${KBC_BUILD_OUTPUT}" >/dev/null
   apksigner verify --verbose "${KBC_BUILD_OUTPUT}" >/dev/null
 
   if [[ -n "${icon_path}" ]]; then

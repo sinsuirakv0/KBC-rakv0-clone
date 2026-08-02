@@ -77,7 +77,7 @@ XAPKを`Download`フォルダへ置くと、更新日時が新しい順に自動
 jp.co.ponos.battlecats.kbc.<識別子>
 ```
 
-識別子には、小文字英字で始まる英小文字・数字・`_`・`.`を使用できます。アイコンは正方形のPNGを推奨します。指定したアイコンはツール内へ保存され、次回更新でも自動的に再利用されます。
+識別子には、小文字英字で始まる英小文字・数字・`_`・`.`を使用できます。アイコンは「公式」「KBCオリジナル」「PNGを指定」の3種類から選べます。KBCオリジナルは、画像が配布された更新後に利用できます。指定したPNGはツール内へ保存され、次回更新でも自動的に再利用されます。
 
 ## コマンド操作
 
@@ -152,7 +152,7 @@ kbc-clone self-update --check
 kbc-clone self-update
 ```
 
-更新元は`sinsuirakv0/KBC-rakv0-clone`の`main`ブランチです。リポジトリがGitHubへ公開されるまでは自動更新を利用できません。
+更新元は`sinsuirakv0/KBC-rakv0-clone`の`main`ブランチです。
 
 ## Android側の制約
 
@@ -166,5 +166,3 @@ kbc-clone self-update
 - 元APKや生成APKの再配布を目的としたツールではありません。
 - 再署名により、Play Integrity、課金、Firebaseなど一部機能が動作しない場合があります。
 - 本ツールはPONOS株式会社およびAPK配布サイトの公式ツールではありません。
-
-詳しい構成は[docs/architecture.md](docs/architecture.md)を参照してください。

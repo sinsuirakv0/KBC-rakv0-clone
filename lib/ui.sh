@@ -58,6 +58,7 @@ kbc_ui_prompt_app_name() {
   local default_name="$1"
   local app_name
 
+  printf '日本語・英字・記号をそのまま入力できます。\n' >&2
   while true; do
     app_name="$(kbc_prompt 'ホーム画面に表示するアプリ名' "${default_name}")"
     if [[ -n "${app_name//[[:space:]]/}" ]]; then
@@ -97,7 +98,9 @@ kbc_ui_prompt_package_suffix() {
 
 kbc_ui_icon_label() {
   local icon_path="$1"
-  if [[ -n "${icon_path}" ]]; then
+  if [[ "${icon_path}" == "${KBC_ORIGINAL_ICON_PATH}" ]]; then
+    printf 'KBCオリジナル'
+  elif [[ -n "${icon_path}" ]]; then
     printf '%s' "$(basename -- "${icon_path}")"
   else
     printf '公式アイコン'
@@ -177,37 +180,16 @@ kbc_ui_select_xapk() {
   done
 }
 
-kbc_ui_discover_icons() {
-  local search_root="/sdcard/Download"
-  [[ -d "${search_root}" ]] || return 0
-
-  find "${search_root}" \
-    -maxdepth 2 \
-    -type f \
-    -iname '*.png' \
-    -printf '%T@\t%p\n' 2>/dev/null |
-    sort -nr |
-    cut -f 2- |
-    head -n 10
-}
-
 kbc_ui_select_icon() {
-  local files=()
-  local index
   local answer
   local manual_path
 
-  mapfile -t files < <(kbc_ui_discover_icons)
   while true; do
     printf 'アプリアイコンを選んでください。\n' >&2
     printf '迷った場合は、公式アイコンのままで大丈夫です。\n\n' >&2
     printf '  0. 公式アイコンを使う（おすすめ）\n' >&2
-    for index in "${!files[@]}"; do
-      printf '  %d. %s\n' \
-        "$((index + 1))" \
-        "$(basename -- "${files[index]}")" >&2
-    done
-    printf '  m. 別のPNGファイルを指定\n' >&2
+    printf '  1. KBCオリジナルを使う\n' >&2
+    printf '  2. PNGファイルを指定する\n' >&2
     printf '  b. 戻る\n' >&2
     printf '番号 [0]: ' >&2
     IFS= read -r answer
@@ -218,10 +200,18 @@ kbc_ui_select_icon() {
         printf ''
         return 0
         ;;
+      1)
+        if ! kbc_validate_png_icon "${KBC_ORIGINAL_ICON_PATH}"; then
+          kbc_warn 'KBCオリジナルアイコンはまだ追加されていません。公式か指定PNGを選んでください。'
+          continue
+        fi
+        printf '%s' "${KBC_ORIGINAL_ICON_PATH}"
+        return 0
+        ;;
       b|B)
         return 2
         ;;
-      m|M)
+      2)
         manual_path="$(kbc_prompt 'PNGファイルの保存場所')"
         if [[ -z "${manual_path}" || ! -f "${manual_path}" ]]; then
           kbc_warn "指定したファイルが見つかりません。"
@@ -236,16 +226,7 @@ kbc_ui_select_icon() {
         ;;
     esac
 
-    if [[ "${answer}" =~ ^[0-9]+$ ]] &&
-      ((answer >= 1 && answer <= ${#files[@]})); then
-      if ! kbc_validate_png_icon "${files[answer - 1]}"; then
-        kbc_warn "選んだファイルはPNG形式ではありません。"
-        continue
-      fi
-      printf '%s' "${files[answer - 1]}"
-      return 0
-    fi
-    kbc_warn "一覧にある番号、m、bのどれかを入力してください。"
+    kbc_warn '0、1、2、bのどれかを入力してください。'
   done
 }
 
@@ -529,6 +510,10 @@ kbc_ui_update_tool() {
 }
 
 kbc_ui_main() {
+  if [[ -t 0 ]]; then
+    stty iutf8 2>/dev/null || true
+  fi
+
   while true; do
     kbc_ui_header
     printf '  1. 新しいクローンを作る\n'
