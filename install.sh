@@ -35,6 +35,7 @@ required_commands=(
   apksigner
   jq
   termux-open
+  termux-reload-settings
 )
 missing_command=false
 for command_name in "${required_commands[@]}"; do
@@ -70,6 +71,7 @@ cp -f "${SOURCE_ROOT}/README.md" "${INSTALL_ROOT}/README.md"
 cp -f "${SOURCE_ROOT}/VERSION" "${INSTALL_ROOT}/VERSION"
 
 source "${INSTALL_ROOT}/lib/core.sh"
+kbc_configure_termux_integration
 
 legacy_keystore_dir="${HOME}/kbc-clone/keystore"
 if [[ ! -f "${KBC_KEYSTORE_PATH}" \

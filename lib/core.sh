@@ -25,6 +25,7 @@ readonly KBC_UPDATE_REPOSITORY="${KBC_CLONE_UPDATE_REPOSITORY:-sinsuirakv0/KBC-r
 readonly KBC_UPDATE_BRANCH="${KBC_CLONE_UPDATE_BRANCH:-main}"
 readonly KBC_UPDATE_VERSION_URL="${KBC_CLONE_UPDATE_VERSION_URL:-https://raw.githubusercontent.com/${KBC_UPDATE_REPOSITORY}/${KBC_UPDATE_BRANCH}/VERSION}"
 readonly KBC_UPDATE_ARCHIVE_URL="${KBC_CLONE_UPDATE_ARCHIVE_URL:-https://github.com/${KBC_UPDATE_REPOSITORY}/archive/refs/heads/${KBC_UPDATE_BRANCH}.tar.gz}"
+readonly KBC_TERMUX_PROPERTIES_PATH="${KBC_CLONE_TERMUX_PROPERTIES_PATH:-${HOME}/.termux/termux.properties}"
 
 KBC_COLOR_ENABLED=true
 if [[ ! -t 1 || "${NO_COLOR:-}" == "1" ]]; then
@@ -84,6 +85,48 @@ kbc_die() {
 kbc_require_command() {
   command -v "$1" >/dev/null 2>&1 ||
     kbc_die "必要なコマンドがありません: $1"
+}
+
+kbc_enable_termux_property() {
+  local property_name="$1"
+  local property_pattern
+
+  property_pattern="^[[:space:]]*#?[[:space:]]*${property_name}[[:space:]]*="
+  mkdir -p "$(dirname -- "${KBC_TERMUX_PROPERTIES_PATH}")"
+  touch "${KBC_TERMUX_PROPERTIES_PATH}"
+
+  if grep -Eq \
+    "^[[:space:]]*${property_name}[[:space:]]*=[[:space:]]*true[[:space:]]*$" \
+    "${KBC_TERMUX_PROPERTIES_PATH}"; then
+    return 1
+  fi
+
+  if grep -Eq "${property_pattern}" "${KBC_TERMUX_PROPERTIES_PATH}"; then
+    sed -i -E \
+      "s|${property_pattern}.*$|${property_name}=true|" \
+      "${KBC_TERMUX_PROPERTIES_PATH}"
+  else
+    printf '\n%s=true\n' "${property_name}" >>"${KBC_TERMUX_PROPERTIES_PATH}"
+  fi
+  return 0
+}
+
+kbc_configure_termux_integration() {
+  local changed=false
+
+  # Android標準インストーラーへの共有と日本語IMEの文字入力を有効にする。
+  if kbc_enable_termux_property "allow-external-apps"; then
+    changed=true
+  fi
+  if kbc_enable_termux_property "enforce-char-based-input"; then
+    changed=true
+  fi
+
+  if [[ "${changed}" == true ]] &&
+    command -v termux-reload-settings >/dev/null 2>&1; then
+    termux-reload-settings >/dev/null 2>&1 || true
+  fi
+  return 0
 }
 
 kbc_initialize_directories() {

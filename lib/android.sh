@@ -40,6 +40,7 @@ kbc_android_open_store() {
 kbc_android_install_apk() {
   local apk_path="$1"
   [[ -f "${apk_path}" ]] || kbc_die "APKが見つかりません: ${apk_path}"
+  kbc_configure_termux_integration
   kbc_info "Androidのインストーラーを開きます"
   termux-open \
     --view \

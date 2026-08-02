@@ -510,6 +510,7 @@ kbc_ui_update_tool() {
 }
 
 kbc_ui_main() {
+  kbc_configure_termux_integration
   if [[ -t 0 ]]; then
     stty iutf8 2>/dev/null || true
   fi
