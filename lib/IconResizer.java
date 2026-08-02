@@ -10,6 +10,8 @@ import java.nio.file.StandardCopyOption;
 import javax.imageio.ImageIO;
 
 public final class IconResizer {
+    private static final double ADAPTIVE_FOREGROUND_SCALE = 2.0 / 3.0;
+
     private IconResizer() {
     }
 
@@ -41,6 +43,9 @@ public final class IconResizer {
             (double) targetWidth / sourceImage.getWidth(),
             (double) targetHeight / sourceImage.getHeight()
         );
+        if (isAdaptiveForeground(targetPath)) {
+            scale *= ADAPTIVE_FOREGROUND_SCALE;
+        }
         int outputWidth = Math.max(1, (int) Math.round(sourceImage.getWidth() * scale));
         int outputHeight = Math.max(1, (int) Math.round(sourceImage.getHeight() * scale));
         int offsetX = (targetWidth - outputWidth) / 2;
@@ -84,5 +89,10 @@ public final class IconResizer {
         } finally {
             Files.deleteIfExists(temporaryPath);
         }
+    }
+
+    private static boolean isAdaptiveForeground(Path targetPath) {
+        Path fileName = targetPath.getFileName();
+        return fileName != null && "icon_foreground.png".equals(fileName.toString());
     }
 }

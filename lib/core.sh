@@ -115,7 +115,7 @@ kbc_enable_termux_property() {
 kbc_configure_termux_integration() {
   local changed=false
 
-  # Android標準インストーラーへの共有と日本語IMEの文字入力を有効にする。
+  # Android標準インストーラーへの共有とTermuxの直接入力を安定させる。
   if kbc_enable_termux_property "allow-external-apps"; then
     changed=true
   fi

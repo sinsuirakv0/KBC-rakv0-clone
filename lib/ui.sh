@@ -58,7 +58,7 @@ kbc_ui_prompt_app_name() {
   local default_name="$1"
   local app_name
 
-  printf '日本語・英字・記号をそのまま入力できます。\n' >&2
+  printf '日本語入力: 下の操作キー欄を左へスワイプし、横長の入力欄で入力してEnterを押してください。\n' >&2
   while true; do
     app_name="$(kbc_prompt 'ホーム画面に表示するアプリ名' "${default_name}")"
     if [[ -n "${app_name//[[:space:]]/}" ]]; then
