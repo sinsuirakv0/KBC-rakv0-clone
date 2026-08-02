@@ -1,0 +1,27 @@
+# 実行時データ
+vendor/
+work/
+output/
+state/
+keystore/
+*.apk
+*.xapk
+*.apks
+*.apkm
+*.jks
+*.keystore
+*.idsig
+*.part
+
+# ローカル設定
+.env
+.env.*
+!.env.example
+.tmp-test-home/
+.tmp-*
+
+# エディタ・OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
