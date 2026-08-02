@@ -64,6 +64,7 @@ mkdir -p \
 
 cp -f "${SOURCE_ROOT}/bin/kbc-clone" "${INSTALL_ROOT}/bin/kbc-clone"
 cp -f "${SOURCE_ROOT}"/lib/*.sh "${INSTALL_ROOT}/lib/"
+cp -f "${SOURCE_ROOT}/lib/IconResizer.java" "${INSTALL_ROOT}/lib/IconResizer.java"
 if [[ -d "${SOURCE_ROOT}/assets" ]]; then
   cp -a "${SOURCE_ROOT}/assets/." "${INSTALL_ROOT}/assets/"
 fi

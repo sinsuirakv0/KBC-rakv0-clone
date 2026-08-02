@@ -236,25 +236,19 @@ kbc_patch_icon() {
   local icon_path="$2"
   local resources_dir="${decoded_dir}/resources"
   local target_path
-  local target_count=0
-  local target_hash
-  local source_hash
+  local target_paths=()
 
   kbc_require_png_icon "${icon_path}"
   [[ -d "${resources_dir}" ]] ||
     kbc_die "展開済みリソースが見つかりません"
-  source_hash="$(sha256sum "${icon_path}" | awk '{print toupper($1)}')"
+  [[ -f "${KBC_ICON_RESIZER_PATH}" ]] ||
+    kbc_die "アイコン変換プログラムが見つかりません"
 
-  # 通常アイコンとアダプティブアイコンの前景を同じ指定PNGへ差し替える。
+  # 元リソースごとの解像度を維持して通常アイコンと前景を差し替える。
   while IFS= read -r -d '' target_path; do
     [[ "${target_path}" == "${resources_dir}/"* ]] ||
       kbc_die "アイコンの書換え先が作業領域外です: ${target_path}"
-    rm -f -- "${target_path}"
-    cp -- "${icon_path}" "${target_path}"
-    target_hash="$(sha256sum "${target_path}" | awk '{print toupper($1)}')"
-    [[ "${target_hash}" == "${source_hash}" ]] ||
-      kbc_die "アイコンの書換え検証に失敗しました: ${target_path}"
-    ((target_count += 1))
+    target_paths+=("${target_path}")
   done < <(
     find "${resources_dir}" \
       -type f \
@@ -262,8 +256,20 @@ kbc_patch_icon() {
       -print0
   )
 
-  ((target_count > 0)) ||
+  ((${#target_paths[@]} > 0)) ||
     kbc_die "APK内のアプリアイコンを特定できませんでした"
+
+  java \
+    -Djava.awt.headless=true \
+    "${KBC_ICON_RESIZER_PATH}" \
+    "${icon_path}" \
+    "${target_paths[@]}" ||
+    kbc_die "アイコンの解像度調整に失敗しました"
+
+  for target_path in "${target_paths[@]}"; do
+    kbc_validate_png_icon "${target_path}" ||
+      kbc_die "アイコンの書換え検証に失敗しました: ${target_path}"
+  done
 }
 
 kbc_ensure_signing_key() {
