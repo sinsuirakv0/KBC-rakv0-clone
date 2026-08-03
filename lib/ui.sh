@@ -207,89 +207,49 @@ kbc_ui_read_xapk_version() {
   printf '%s' "${version_name}"
 }
 
-kbc_ui_download_latest_xapk() {
-  local before_path
-  local after_path
-  local downloaded_path
-  local version_name
-
-  kbc_is_termux || return 1
-  command -v termux-open-url >/dev/null 2>&1 || return 1
-
-  before_path="$(mktemp "${KBC_CACHE_DIR}/xapk-before.XXXXXX")"
-  after_path="$(mktemp "${KBC_CACHE_DIR}/xapk-after.XXXXXX")"
-  kbc_ui_discover_xapks >"${before_path}"
-
-  printf 'APKComboの本家最新版XAPKの取得画面をブラウザで開きます。\n' >&2
-  printf 'ブラウザ側でダウンロードを完了してから、ここでEnterを押してください。\n' >&2
-  if ! termux-open-url "${KBC_APKCOMBO_DOWNLOADER_URL}"; then
-    rm -f -- "${before_path}" "${after_path}"
-    return 1
-  fi
-  printf 'ダウンロード完了後にEnter: ' >&2
-  IFS= read -r _
-
-  kbc_ui_discover_xapks >"${after_path}"
-  while IFS= read -r downloaded_path; do
-    [[ -n "${downloaded_path}" ]] || continue
-    if ! grep -Fqx -- "${downloaded_path}" "${before_path}"; then
-      rm -f -- "${before_path}" "${after_path}"
-      if version_name="$(kbc_ui_read_xapk_version "${downloaded_path}")"; then
-        printf 'APKComboから本家最新版 v%s のXAPKを検出しました。\n' "${version_name}" >&2
-      fi
-      printf '%s' "${downloaded_path}"
-      return 0
-    fi
-  done <"${after_path}"
-
-  rm -f -- "${before_path}" "${after_path}"
-  kbc_warn "新しく取得したXAPKを確認できませんでした。一覧から選んでください。"
-  return 1
-}
-
 kbc_ui_select_xapk() {
   local files=()
   local index
   local answer
   local manual_path
-  local downloaded_path
+  local version_name
 
   while true; do
     mapfile -t files < <(kbc_ui_discover_xapks)
     if ((${#files[@]} == 0)); then
       printf 'DownloadフォルダにXAPKが見つかりません。\n' >&2
+      printf '先にブラウザなどで本家XAPK（.xapk）をDownloadへ保存してください。\n' >&2
     else
       printf '元になるXAPKを選んでください。\n' >&2
       printf '通常は、いちばん新しいファイルを選びます。\n\n' >&2
       for index in "${!files[@]}"; do
-        printf '  %d. %s\n' \
-          "$((index + 1))" \
-          "$(basename -- "${files[index]}")" >&2
+        if version_name="$(kbc_ui_read_xapk_version "${files[index]}")"; then
+          printf '  %d. v%s  %s\n' \
+            "$((index + 1))" \
+            "${version_name}" \
+            "$(basename -- "${files[index]}")" >&2
+        else
+          printf '  %d. 版不明  %s\n' \
+            "$((index + 1))" \
+            "$(basename -- "${files[index]}")" >&2
+        fi
       done
     fi
-    printf '  d. APKComboから本家最新版XAPKを取得\n' >&2
-    printf '  m. 別の保存場所またはURLを入力\n' >&2
+    printf '  m. 別の保存場所にあるXAPKを指定\n' >&2
     printf '  b. 戻る\n' >&2
     printf '番号: ' >&2
     IFS= read -r answer
 
     case "${answer}" in
       b|B) return 2 ;;
-      d|D)
-        if downloaded_path="$(kbc_ui_download_latest_xapk)"; then
-          printf '%s' "${downloaded_path}"
-          return 0
-        fi
-        continue
-        ;;
       m|M)
-        manual_path="$(kbc_prompt 'XAPKの保存場所またはURL')"
+        manual_path="$(kbc_prompt 'XAPKの保存場所')"
         if [[ -z "${manual_path}" ]]; then
-          kbc_warn "保存場所またはURLを入力してください。"
+          kbc_warn "保存場所を入力してください。"
           continue
         fi
-        if [[ ! "${manual_path}" =~ ^https?:// && ! -f "${manual_path}" ]]; then
-          kbc_warn "指定したファイルが見つかりません。"
+        if [[ ! -f "${manual_path}" || "${manual_path,,}" != *.xapk ]]; then
+          kbc_warn "拡張子が.xapkのファイルを指定してください。"
           continue
         fi
         printf '%s' "${manual_path}"
@@ -302,7 +262,7 @@ kbc_ui_select_xapk() {
       printf '%s' "${files[answer - 1]}"
       return 0
     fi
-    kbc_warn "一覧にある番号、d、m、bのどれかを入力してください。"
+    kbc_warn "一覧にある番号、m、bのどれかを入力してください。"
   done
 }
 

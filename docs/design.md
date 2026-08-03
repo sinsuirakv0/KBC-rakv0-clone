@@ -17,8 +17,8 @@ BCSFEのroot storage読み込みは名前の接頭辞を判定せず、`/data/da
 - `https://github.com/fieryhenry/BCSFE-Python/blob/main/src/bcsfe/core/io/root_handler.py`
 - `https://github.com/fieryhenry/BCSFE-Python/blob/main/src/bcsfe/core/io/adb_handler.py`
 
-## 本家最新版XAPK
+## 本家XAPK
 
-`d`選択はAPKComboのダウンロード画面をブラウザで開く。配布ページがブラウザ上の検証を要求する場合があるため、ツールはその検証を迂回しない。ユーザーが正規の画面でXAPKの取得を完了した後、Download配下へ新しく追加された`.xapk`を検出して選択する。
+本家XAPKは利用者が正規の配布元から手動で取得し、Downloadへ保存する。ツールは外部配布元の取得処理や検証回避を行わない。選択画面ではDownload内の`.xapk`を更新日時順に表示し、`manifest.json`から読み取った版番号も併記する。Download以外のローカル保存場所も指定できる。
 
 生成前にXAPKの`manifest.json`から本家パッケージ名と版番号を検査する。元のパッケージが`jp.co.ponos.battlecats`でない場合は処理を中止する。
