@@ -15,6 +15,7 @@ readonly KBC_KEYSTORE_DIR="${KBC_DATA_DIR}/keystore"
 readonly KBC_ICON_DIR="${KBC_DATA_DIR}/icons"
 readonly KBC_ORIGINAL_ICON_PATH="${KBC_CLONE_ROOT}/assets/kbc-original-icon.png"
 readonly KBC_ICON_RESIZER_PATH="${KBC_CLONE_ROOT}/lib/IconResizer.java"
+readonly KBC_APP_NAME_DIALOG_PATH="${KBC_CLONE_ROOT}/lib/app_name_dialog.py"
 readonly KBC_KEYSTORE_PATH="${KBC_KEYSTORE_DIR}/kbc-clone.jks"
 readonly KBC_PASSWORD_PATH="${KBC_KEYSTORE_DIR}/.signing-password"
 readonly KBC_KEY_ALIAS="kbc-clone"
@@ -27,6 +28,7 @@ readonly KBC_UPDATE_BRANCH="${KBC_CLONE_UPDATE_BRANCH:-main}"
 readonly KBC_UPDATE_VERSION_URL="${KBC_CLONE_UPDATE_VERSION_URL:-https://raw.githubusercontent.com/${KBC_UPDATE_REPOSITORY}/${KBC_UPDATE_BRANCH}/VERSION}"
 readonly KBC_UPDATE_ARCHIVE_URL="${KBC_CLONE_UPDATE_ARCHIVE_URL:-https://github.com/${KBC_UPDATE_REPOSITORY}/archive/refs/heads/${KBC_UPDATE_BRANCH}.tar.gz}"
 readonly KBC_TERMUX_PROPERTIES_PATH="${KBC_CLONE_TERMUX_PROPERTIES_PATH:-${HOME}/.termux/termux.properties}"
+readonly KBC_APKCOMBO_DOWNLOADER_URL="https://apkcombo.com/downloader/#package=jp.co.ponos.battlecats&sdk=30&arches=armeabi-v7a"
 
 KBC_COLOR_ENABLED=true
 if [[ ! -t 1 || "${NO_COLOR:-}" == "1" ]]; then
@@ -144,6 +146,19 @@ kbc_initialize_directories() {
   fi
 }
 
+kbc_remove_cache_directory() {
+  local target_path="$1"
+  local resolved_cache_directory
+  local resolved_target_path
+
+  [[ -d "${target_path}" ]] || return 0
+  resolved_cache_directory="$(realpath -m "${KBC_CACHE_DIR}")"
+  resolved_target_path="$(realpath -m "${target_path}")"
+  [[ "${resolved_target_path}" == "${resolved_cache_directory}/"* ]] ||
+    kbc_die "安全のためキャッシュ外の一時ディレクトリは削除しません: ${target_path}"
+  rm -rf -- "${resolved_target_path}"
+}
+
 kbc_validate_package_name() {
   local package_name="$1"
   [[ "${package_name}" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]
@@ -154,10 +169,23 @@ kbc_validate_package_suffix() {
   [[ "${package_suffix}" =~ ^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$ ]]
 }
 
+kbc_validate_managed_clone_package() {
+  local package_name="$1"
+  local package_suffix
+
+  kbc_validate_package_name "${package_name}" || return 1
+  [[ "${package_name}" == "${KBC_PACKAGE_PREFIX}"* ]] || return 1
+  package_suffix="${package_name#"${KBC_PACKAGE_PREFIX}"}"
+  [[ -n "${package_suffix}" ]] || return 1
+  kbc_validate_package_suffix "${package_suffix}"
+}
+
 kbc_package_from_suffix() {
   local package_suffix="$1"
   kbc_validate_package_suffix "${package_suffix}" || return 1
-  printf '%s%s' "${KBC_PACKAGE_PREFIX}" "${package_suffix}"
+  local package_name="${KBC_PACKAGE_PREFIX}${package_suffix}"
+  kbc_validate_managed_clone_package "${package_name}" || return 1
+  printf '%s' "${package_name}"
 }
 
 kbc_require_package_suffix() {
@@ -172,6 +200,20 @@ kbc_require_clone_package() {
     kbc_die "パッケージ名の形式が正しくありません: ${package_name}"
   [[ "${package_name}" != "${KBC_ORIGINAL_PACKAGE}" ]] ||
     kbc_die "本家と同じパッケージ名は使用できません"
+}
+
+kbc_validate_app_name() {
+  local app_name="$1"
+
+  [[ -n "${app_name//[[:space:]]/}" ]] || return 1
+  ((${#app_name} <= 80)) || return 1
+  [[ ! "${app_name}" =~ [[:cntrl:]] ]]
+}
+
+kbc_require_app_name() {
+  local app_name="$1"
+  kbc_validate_app_name "${app_name}" ||
+    kbc_die "アプリ名は空白だけにせず、80文字以内で入力してください"
 }
 
 kbc_validate_png_icon() {

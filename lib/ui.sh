@@ -54,18 +54,92 @@ kbc_ui_run_screen() {
   kbc_ui_pause
 }
 
+kbc_ui_prompt_app_name_in_browser() {
+  local default_name="$1"
+  local dialog_directory
+  local result_path
+  local ready_path
+  local token
+  local dialog_pid
+  local dialog_url
+  local app_name
+  local attempt
+
+  kbc_is_termux || return 1
+  command -v python >/dev/null 2>&1 || return 1
+  command -v termux-open-url >/dev/null 2>&1 || return 1
+  [[ -f "${KBC_APP_NAME_DIALOG_PATH}" ]] || return 1
+
+  dialog_directory="$(mktemp -d "${KBC_CACHE_DIR}/app-name.XXXXXX")"
+  result_path="${dialog_directory}/result.txt"
+  ready_path="${dialog_directory}/ready.txt"
+  token="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+
+  python "${KBC_APP_NAME_DIALOG_PATH}" \
+    --default "${default_name}" \
+    --result "${result_path}" \
+    --ready "${ready_path}" \
+    --token "${token}" &
+  dialog_pid=$!
+
+  for ((attempt = 0; attempt < 50; attempt += 1)); do
+    if [[ -s "${ready_path}" ]]; then
+      break
+    fi
+    if ! kill -0 "${dialog_pid}" 2>/dev/null; then
+      break
+    fi
+    sleep 0.1
+  done
+
+  if [[ ! -s "${ready_path}" ]]; then
+    wait "${dialog_pid}" 2>/dev/null || true
+    kbc_remove_cache_directory "${dialog_directory}"
+    return 1
+  fi
+
+  dialog_url="$(tr -d '\r\n' <"${ready_path}")"
+  if ! termux-open-url "${dialog_url}"; then
+    kill "${dialog_pid}" 2>/dev/null || true
+    wait "${dialog_pid}" 2>/dev/null || true
+    kbc_remove_cache_directory "${dialog_directory}"
+    return 1
+  fi
+
+  printf 'ブラウザにアプリ名の入力欄を開きました。日本語キーボードで入力して決定してください。\n' >&2
+  printf '決定後はTermuxへ戻ってください。5分間待機します。\n' >&2
+  if ! wait "${dialog_pid}"; then
+    kbc_remove_cache_directory "${dialog_directory}"
+    return 1
+  fi
+
+  if [[ ! -f "${result_path}" ]]; then
+    kbc_remove_cache_directory "${dialog_directory}"
+    return 1
+  fi
+  app_name="$(<"${result_path}")"
+  kbc_remove_cache_directory "${dialog_directory}"
+  kbc_validate_app_name "${app_name}" || return 1
+  printf '%s' "${app_name}"
+}
+
 kbc_ui_prompt_app_name() {
   local default_name="$1"
   local app_name
 
-  printf '日本語入力: 下の操作キー欄を左へスワイプし、横長の入力欄で入力してEnterを押してください。\n' >&2
+  if app_name="$(kbc_ui_prompt_app_name_in_browser "${default_name}")"; then
+    printf '%s' "${app_name}"
+    return 0
+  fi
+
+  printf '標準入力欄を開けなかったため、Termuxの入力欄でアプリ名を入力します。\n' >&2
   while true; do
     app_name="$(kbc_prompt 'ホーム画面に表示するアプリ名' "${default_name}")"
-    if [[ -n "${app_name//[[:space:]]/}" ]]; then
+    if kbc_validate_app_name "${app_name}"; then
       printf '%s' "${app_name}"
       return 0
     fi
-    kbc_warn "アプリ名を入力してください。"
+    kbc_warn "アプリ名は空白だけにせず、80文字以内で入力してください。"
   done
 }
 
@@ -121,34 +195,79 @@ kbc_ui_discover_xapks() {
     head -n 10
 }
 
+kbc_ui_read_xapk_version() {
+  local xapk_path="$1"
+  local manifest_json
+  local version_name
+
+  [[ -f "${xapk_path}" ]] || return 1
+  manifest_json="$(unzip -p "${xapk_path}" manifest.json 2>/dev/null)" || return 1
+  version_name="$(printf '%s' "${manifest_json}" | jq -r '.version_name // empty' 2>/dev/null)" || return 1
+  [[ -n "${version_name}" ]] || return 1
+  printf '%s' "${version_name}"
+}
+
+kbc_ui_download_latest_xapk() {
+  local before_path
+  local after_path
+  local downloaded_path
+  local version_name
+
+  kbc_is_termux || return 1
+  command -v termux-open-url >/dev/null 2>&1 || return 1
+
+  before_path="$(mktemp "${KBC_CACHE_DIR}/xapk-before.XXXXXX")"
+  after_path="$(mktemp "${KBC_CACHE_DIR}/xapk-after.XXXXXX")"
+  kbc_ui_discover_xapks >"${before_path}"
+
+  printf 'APKComboの本家最新版XAPKの取得画面をブラウザで開きます。\n' >&2
+  printf 'ブラウザ側でダウンロードを完了してから、ここでEnterを押してください。\n' >&2
+  if ! termux-open-url "${KBC_APKCOMBO_DOWNLOADER_URL}"; then
+    rm -f -- "${before_path}" "${after_path}"
+    return 1
+  fi
+  printf 'ダウンロード完了後にEnter: ' >&2
+  IFS= read -r _
+
+  kbc_ui_discover_xapks >"${after_path}"
+  while IFS= read -r downloaded_path; do
+    [[ -n "${downloaded_path}" ]] || continue
+    if ! grep -Fqx -- "${downloaded_path}" "${before_path}"; then
+      rm -f -- "${before_path}" "${after_path}"
+      if version_name="$(kbc_ui_read_xapk_version "${downloaded_path}")"; then
+        printf 'APKComboから本家最新版 v%s のXAPKを検出しました。\n' "${version_name}" >&2
+      fi
+      printf '%s' "${downloaded_path}"
+      return 0
+    fi
+  done <"${after_path}"
+
+  rm -f -- "${before_path}" "${after_path}"
+  kbc_warn "新しく取得したXAPKを確認できませんでした。一覧から選んでください。"
+  return 1
+}
+
 kbc_ui_select_xapk() {
   local files=()
   local index
   local answer
   local manual_path
+  local downloaded_path
 
-  mapfile -t files < <(kbc_ui_discover_xapks)
   while true; do
+    mapfile -t files < <(kbc_ui_discover_xapks)
     if ((${#files[@]} == 0)); then
       printf 'DownloadフォルダにXAPKが見つかりません。\n' >&2
-      printf '先に元になるXAPKをDownloadへ保存してください。\n' >&2
-      manual_path="$(kbc_prompt 'XAPKの保存場所またはURL（空欄で戻る）')"
-      [[ -n "${manual_path}" ]] || return 2
-      if [[ ! "${manual_path}" =~ ^https?:// && ! -f "${manual_path}" ]]; then
-        kbc_warn "指定したファイルが見つかりません。"
-        continue
-      fi
-      printf '%s' "${manual_path}"
-      return 0
+    else
+      printf '元になるXAPKを選んでください。\n' >&2
+      printf '通常は、いちばん新しいファイルを選びます。\n\n' >&2
+      for index in "${!files[@]}"; do
+        printf '  %d. %s\n' \
+          "$((index + 1))" \
+          "$(basename -- "${files[index]}")" >&2
+      done
     fi
-
-    printf '元になるXAPKを選んでください。\n' >&2
-    printf '通常は、いちばん新しいファイルを選びます。\n\n' >&2
-    for index in "${!files[@]}"; do
-      printf '  %d. %s\n' \
-        "$((index + 1))" \
-        "$(basename -- "${files[index]}")" >&2
-    done
+    printf '  d. APKComboから本家最新版XAPKを取得\n' >&2
     printf '  m. 別の保存場所またはURLを入力\n' >&2
     printf '  b. 戻る\n' >&2
     printf '番号: ' >&2
@@ -156,6 +275,13 @@ kbc_ui_select_xapk() {
 
     case "${answer}" in
       b|B) return 2 ;;
+      d|D)
+        if downloaded_path="$(kbc_ui_download_latest_xapk)"; then
+          printf '%s' "${downloaded_path}"
+          return 0
+        fi
+        continue
+        ;;
       m|M)
         manual_path="$(kbc_prompt 'XAPKの保存場所またはURL')"
         if [[ -z "${manual_path}" ]]; then
@@ -176,7 +302,7 @@ kbc_ui_select_xapk() {
       printf '%s' "${files[answer - 1]}"
       return 0
     fi
-    kbc_warn "一覧にある番号、m、bのどれかを入力してください。"
+    kbc_warn "一覧にある番号、d、m、bのどれかを入力してください。"
   done
 }
 

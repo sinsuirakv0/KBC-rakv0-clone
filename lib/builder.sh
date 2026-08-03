@@ -348,7 +348,7 @@ kbc_build_clone() {
   local managed_icon_path=""
 
   kbc_require_clone_package "${clone_package}"
-  [[ -n "${app_name}" ]] || kbc_die "アプリ名を入力してください"
+  kbc_require_app_name "${app_name}"
   if [[ -n "${icon_path}" ]]; then
     kbc_require_png_icon "${icon_path}"
   fi

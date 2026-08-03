@@ -35,7 +35,9 @@ required_commands=(
   apksigner
   jq
   termux-open
+  termux-open-url
   termux-reload-settings
+  python
 )
 missing_command=false
 for command_name in "${required_commands[@]}"; do
@@ -48,10 +50,10 @@ done
 if [[ "${update_mode}" == false ]]; then
   printf '[KBC clone] Termuxパッケージを準備します\n'
   pkg update -y
-  pkg install -y openjdk-17 curl unzip aapt apksigner jq termux-tools
+  pkg install -y openjdk-17 curl unzip aapt apksigner jq termux-tools python
 elif [[ "${missing_command}" == true ]]; then
   printf '[KBC clone] 不足しているTermuxパッケージを追加します\n'
-  pkg install -y openjdk-17 curl unzip aapt apksigner jq termux-tools
+  pkg install -y openjdk-17 curl unzip aapt apksigner jq termux-tools python
 else
   printf '[KBC clone] 導入済みパッケージを再利用します\n'
 fi
@@ -65,6 +67,7 @@ mkdir -p \
 cp -f "${SOURCE_ROOT}/bin/kbc-clone" "${INSTALL_ROOT}/bin/kbc-clone"
 cp -f "${SOURCE_ROOT}"/lib/*.sh "${INSTALL_ROOT}/lib/"
 cp -f "${SOURCE_ROOT}/lib/IconResizer.java" "${INSTALL_ROOT}/lib/IconResizer.java"
+cp -f "${SOURCE_ROOT}/lib/app_name_dialog.py" "${INSTALL_ROOT}/lib/app_name_dialog.py"
 if [[ -d "${SOURCE_ROOT}/assets" ]]; then
   cp -a "${SOURCE_ROOT}/assets/." "${INSTALL_ROOT}/assets/"
 fi
