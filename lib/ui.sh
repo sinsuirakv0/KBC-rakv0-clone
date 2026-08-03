@@ -207,12 +207,80 @@ kbc_ui_read_xapk_version() {
   printf '%s' "${version_name}"
 }
 
+kbc_ui_acquire_xapk_from_provider() {
+  local provider_name="$1"
+  local provider_url="$2"
+  shift 2
+  local before_path
+  local after_path
+  local downloaded_path
+  local version_name
+  local step
+
+  kbc_is_termux || return 1
+  command -v termux-open-url >/dev/null 2>&1 || return 1
+
+  before_path="$(mktemp "${KBC_CACHE_DIR}/xapk-before.XXXXXX")"
+  after_path="$(mktemp "${KBC_CACHE_DIR}/xapk-after.XXXXXX")"
+  kbc_ui_discover_xapks >"${before_path}"
+
+  printf '\n%sから本家XAPKを手動で取得します。\n' "${provider_name}" >&2
+  for step in "$@"; do
+    printf '  %s\n' "${step}" >&2
+  done
+  printf 'ダウンロード画面を開きます。\n\n' >&2
+  if ! termux-open-url "${provider_url}"; then
+    rm -f -- "${before_path}" "${after_path}"
+    return 1
+  fi
+  printf 'ダウンロード完了後にTermuxへ戻り、Enterを押してください: ' >&2
+  IFS= read -r _
+
+  kbc_ui_discover_xapks >"${after_path}"
+  while IFS= read -r downloaded_path; do
+    [[ -n "${downloaded_path}" ]] || continue
+    if ! grep -Fqx -- "${downloaded_path}" "${before_path}"; then
+      rm -f -- "${before_path}" "${after_path}"
+      if version_name="$(kbc_ui_read_xapk_version "${downloaded_path}")"; then
+        printf '%sから取得した本家XAPK v%s を検出しました。\n' \
+          "${provider_name}" \
+          "${version_name}" >&2
+      fi
+      printf '%s' "${downloaded_path}"
+      return 0
+    fi
+  done <"${after_path}"
+
+  rm -f -- "${before_path}" "${after_path}"
+  kbc_warn "新しく取得したXAPKを確認できませんでした。一覧から選んでください。"
+  return 1
+}
+
+kbc_ui_acquire_xapk_from_apkcombo() {
+  kbc_ui_acquire_xapk_from_provider \
+    "APKCombo" \
+    "${KBC_APKCOMBO_DOWNLOADER_URL}" \
+    '1. 表示されたにゃんこ大戦争のダウンロードを選びます。' \
+    '2. XAPK（.xapk）として保存される項目を選びます。' \
+    '3. ダウンロードが完了したら、この画面へ戻ります。'
+}
+
+kbc_ui_acquire_xapk_from_apkpure() {
+  kbc_ui_acquire_xapk_from_provider \
+    "APKPure" \
+    "${KBC_APKPURE_DOWNLOAD_URL}" \
+    '1. 表示されたにゃんこ大戦争の最新版を確認します。' \
+    '2. 「Download XAPK」を選び、.xapkファイルとして保存します。' \
+    '3. ダウンロードが完了したら、この画面へ戻ります。'
+}
+
 kbc_ui_select_xapk() {
   local files=()
   local index
   local answer
   local manual_path
   local version_name
+  local downloaded_path
 
   while true; do
     mapfile -t files < <(kbc_ui_discover_xapks)
@@ -235,6 +303,8 @@ kbc_ui_select_xapk() {
         fi
       done
     fi
+    printf '  c. APKComboからXAPKを手動で取得\n' >&2
+    printf '  p. APKPureからXAPKを手動で取得\n' >&2
     printf '  m. 別の保存場所にあるXAPKを指定\n' >&2
     printf '  b. 戻る\n' >&2
     printf '番号: ' >&2
@@ -242,6 +312,20 @@ kbc_ui_select_xapk() {
 
     case "${answer}" in
       b|B) return 2 ;;
+      c|C)
+        if downloaded_path="$(kbc_ui_acquire_xapk_from_apkcombo)"; then
+          printf '%s' "${downloaded_path}"
+          return 0
+        fi
+        continue
+        ;;
+      p|P)
+        if downloaded_path="$(kbc_ui_acquire_xapk_from_apkpure)"; then
+          printf '%s' "${downloaded_path}"
+          return 0
+        fi
+        continue
+        ;;
       m|M)
         manual_path="$(kbc_prompt 'XAPKの保存場所')"
         if [[ -z "${manual_path}" ]]; then
@@ -262,7 +346,7 @@ kbc_ui_select_xapk() {
       printf '%s' "${files[answer - 1]}"
       return 0
     fi
-    kbc_warn "一覧にある番号、m、bのどれかを入力してください。"
+    kbc_warn "一覧にある番号、c、p、m、bのどれかを入力してください。"
   done
 }
 

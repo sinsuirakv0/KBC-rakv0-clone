@@ -28,6 +28,8 @@ readonly KBC_UPDATE_BRANCH="${KBC_CLONE_UPDATE_BRANCH:-main}"
 readonly KBC_UPDATE_VERSION_URL="${KBC_CLONE_UPDATE_VERSION_URL:-https://raw.githubusercontent.com/${KBC_UPDATE_REPOSITORY}/${KBC_UPDATE_BRANCH}/VERSION}"
 readonly KBC_UPDATE_ARCHIVE_URL="${KBC_CLONE_UPDATE_ARCHIVE_URL:-https://github.com/${KBC_UPDATE_REPOSITORY}/archive/refs/heads/${KBC_UPDATE_BRANCH}.tar.gz}"
 readonly KBC_TERMUX_PROPERTIES_PATH="${KBC_CLONE_TERMUX_PROPERTIES_PATH:-${HOME}/.termux/termux.properties}"
+readonly KBC_APKCOMBO_DOWNLOADER_URL="https://apkcombo.com/downloader/#package=jp.co.ponos.battlecats&sdk=30&arches=armeabi-v7a"
+readonly KBC_APKPURE_DOWNLOAD_URL="https://apkpure.net/%E3%81%AB%E3%82%83%E3%82%93%E3%81%93%E5%A4%A7%E6%88%A6%E4%BA%89/jp.co.ponos.battlecats/download"
 
 KBC_COLOR_ENABLED=true
 if [[ ! -t 1 || "${NO_COLOR:-}" == "1" ]]; then
